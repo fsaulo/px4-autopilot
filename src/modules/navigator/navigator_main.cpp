@@ -257,8 +257,16 @@ void Navigator::run()
 				bool reposition_valid = true;
 
 				vehicle_global_position_s position_setpoint{};
-				position_setpoint.lat = cmd.param5;
-				position_setpoint.lon = cmd.param6;
+
+				if (PX4_ISFINITE(cmd.param5) && PX4_ISFINITE(cmd.param6)) {
+					position_setpoint.lat = cmd.param5;
+					position_setpoint.lon = cmd.param6;
+
+				} else {
+					position_setpoint.lat = get_global_position()->lat;
+					position_setpoint.lon = get_global_position()->lon;
+				}
+
 				position_setpoint.alt = PX4_ISFINITE(cmd.param7) ? cmd.param7 : get_global_position()->alt;
 
 				if (have_geofence_position_data) {
@@ -1525,6 +1533,18 @@ void Navigator::mode_completed(uint8_t nav_state, uint8_t result)
 	mode_completed.result = result;
 	mode_completed.nav_state = nav_state;
 	_mode_completed_pub.publish(mode_completed);
+}
+
+
+void Navigator::disable_camera_trigger()
+{
+	// Disable camera trigger
+	vehicle_command_s cmd {};
+	cmd.command = vehicle_command_s::VEHICLE_CMD_DO_TRIGGER_CONTROL;
+	// Pause trigger
+	cmd.param1 = -1.0f;
+	cmd.param3 = 1.0f;
+	publish_vehicle_cmd(&cmd);
 }
 
 int Navigator::print_usage(const char *reason)
